@@ -1,0 +1,73 @@
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Date;
+
+public class Borrow {
+
+    // Borrow a book
+    public static void borrowBook(int bookId, int memberId) {
+        String query = "INSERT INTO borrowed_books (book_id, member_id, borrow_date) VALUES (?, ?, ?)";
+        String updateBookQuery = "UPDATE books SET quantity = quantity - 1 WHERE book_id = ?";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             PreparedStatement updateStmt = conn.prepareStatement(updateBookQuery)) {
+             
+            stmt.setInt(1, bookId);
+            stmt.setInt(2, memberId);
+            stmt.setDate(3, new Date(System.currentTimeMillis()));  // Current date for borrow date
+            stmt.executeUpdate();
+
+            updateStmt.setInt(1, bookId);
+            updateStmt.executeUpdate();
+            
+            System.out.println("Book borrowed successfully.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Return a book
+    public static void returnBook(int borrowId) {
+        String query = "UPDATE borrowed_books SET return_date = ? WHERE borrow_id = ?";
+        String updateBookQuery = "UPDATE books SET quantity = quantity + 1 WHERE book_id = (SELECT book_id FROM borrowed_books WHERE borrow_id = ?)";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query);
+             PreparedStatement updateStmt = conn.prepareStatement(updateBookQuery)) {
+             
+            stmt.setDate(1, new Date(System.currentTimeMillis()));
+            stmt.setInt(2, borrowId);
+            stmt.executeUpdate();
+
+            updateStmt.setInt(1, borrowId);
+            updateStmt.executeUpdate();
+            
+            System.out.println("Book returned successfully.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // View borrowed books
+    public static void viewBorrowedBooks(int memberId) {
+        String query = "SELECT * FROM borrowed_books WHERE member_id = ? AND return_date IS NULL";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+             
+            stmt.setInt(1, memberId);
+            ResultSet rs = stmt.executeQuery();
+            
+            while (rs.next()) {
+                System.out.println("Borrow ID: " + rs.getInt("borrow_id") +
+                                   ", Book ID: " + rs.getInt("book_id") +
+                                   ", Borrow Date: " + rs.getDate("borrow_date"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+}
